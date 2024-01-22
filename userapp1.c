@@ -9,7 +9,7 @@ int main()
 {
 	FILE* fptr;
 	char c='h';
-	int dev=open("/dev/kerdriver",O_RDWR);
+	int dev=open("/dev/key",O_RDWR);
 	printf("current process id %d\n",getpid());
 	if(dev<0)
 	{
@@ -28,6 +28,8 @@ int main()
 	//ioctl(dev,STRUCT_WR,&s);
 	printf("data send to kernel \n");
 	char buf[200];*/
+	int i=1;
+	do{
 	fptr=fopen("spy.txt","a");
 	if(fptr==NULL)
 	{
@@ -45,8 +47,13 @@ int main()
 	*/
 	
 	putc(c,fptr);
+	if(c=='x')
+	{
+	i=0;
+	}
 	
 	fclose(fptr);
+	}while(i==1);
 	close(dev);
 	printf("driver is close\n");
 	return 0;

