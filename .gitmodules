@@ -1,0 +1,3 @@
+[submodule "eud"]
+	path = eud
+	url = https://github.com/Mahavishnu721/eud.git
